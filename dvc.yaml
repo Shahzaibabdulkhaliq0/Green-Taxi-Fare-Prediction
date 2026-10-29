@@ -1,0 +1,60 @@
+stages:
+  make_dataset:
+    cmd: python src/data/make_dataset.py
+    deps:
+      - src/data/make_dataset.py
+      - data/raw/2015_Green_Taxi_Trip_Data.csv
+    params:
+      - data_preparation
+    outs:
+      - data/interim/train.csv
+      - data/interim/test.csv
+
+  build_features:
+    cmd: python src/features/build_features.py
+    deps:
+      - src/features/build_features.py
+      - data/interim/train.csv
+      - data/interim/test.csv
+    params:
+      - feature_engineering
+    outs:
+      - data/processed/train.csv
+      - data/processed/test.csv
+
+  train_model:
+    cmd: python src/models/train_model.py
+    deps:
+      - src/models/train_model.py
+      - data/processed/train.csv
+    params:
+      - model_training
+    outs:
+      - reports/model_comparison.csv
+
+  tune_model:
+    cmd: python src/models/tune_model.py
+    deps:
+      - src/models/tune_model.py
+      - src/models/train_model.py
+      - data/processed/train.csv
+      - reports/model_comparison.csv
+    params:
+      - model_training
+    outs:
+      - models/best_model.joblib
+      - reports/grid_search_results.csv
+      - reports/best_parameters.csv
+
+  evaluate_model:
+    cmd: python src/models/evaluate_model.py
+    deps:
+      - src/models/evaluate_model.py
+      - src/models/train_model.py
+      - data/processed/test.csv
+      - models/best_model.joblib
+    params:
+      - model_training
+    metrics:
+      - reports/test_evaluation.csv:
+          cache: false
