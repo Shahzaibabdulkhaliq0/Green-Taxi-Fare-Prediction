@@ -1,0 +1,236 @@
+schema: '2.0'
+stages:
+  make_dataset:
+    cmd: python src/data/make_dataset.py
+    deps:
+    - path: data/raw/2015_Green_Taxi_Trip_Data.csv
+      hash: md5
+      md5: 6db3bf7cd76d720c1897563138bb9923
+      size: 124928071
+    - path: src/data/make_dataset.py
+      hash: md5
+      md5: c1ff141eb55892fadf84da8a3935c7be
+      size: 1498
+    params:
+      params.yaml:
+        data_preparation:
+          raw_data_path: data/raw/2015_Green_Taxi_Trip_Data.csv
+          interim_data_dir: data/interim
+          target: Fare_amount
+          test_size: 0.2
+          random_state: 42
+    outs:
+    - path: data/interim/test.csv
+      hash: md5
+      md5: 39a5eb86c6069e70ce4210d5ff9807c7
+      size: 26622067
+    - path: data/interim/train.csv
+      hash: md5
+      md5: 54900550895a70d03c97a1723ececa4f
+      size: 106488955
+  build_features:
+    cmd: python src/features/build_features.py
+    deps:
+    - path: data/interim/test.csv
+      hash: md5
+      md5: 39a5eb86c6069e70ce4210d5ff9807c7
+      size: 26622067
+    - path: data/interim/train.csv
+      hash: md5
+      md5: 54900550895a70d03c97a1723ececa4f
+      size: 106488955
+    - path: src/features/build_features.py
+      hash: md5
+      md5: 776f6a6f51dba9b0934fa06d5535729e
+      size: 1879
+    params:
+      params.yaml:
+        feature_engineering:
+          input_dir: data/interim
+          output_dir: data/processed
+          target: Fare_amount
+          drop_columns:
+          - Total_amount
+          - Tip_amount
+          - Tolls_amount
+          - Extra
+          - MTA_tax
+          - Improvement_surcharge
+          - Ehail_fee
+          - Payment_type
+          - dropoff_datetime
+          pickup_datetime_format: '%m/%d/%Y %I:%M:%S %p'
+    outs:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: c661e7f83e28f8517597893b899fdf66
+      size: 15989598
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 7464f0f3c457576f1e9c68091f530ff6
+      size: 63958961
+  train_model:
+    cmd: python src/models/train_model.py
+    deps:
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 7464f0f3c457576f1e9c68091f530ff6
+      size: 63958961
+    - path: src/models/train_model.py
+      hash: md5
+      md5: 7b1712e8029b497337fd32a9f28e7ab1
+      size: 4506
+    params:
+      params.yaml:
+        model_training:
+          target: Fare_amount
+          experiment_name: Green-Taxi-Fare-Prediction
+          cv_folds: 3
+          random_state: 42
+          models:
+            linear_regression:
+              fit_intercept: true
+              n_jobs: -1
+            random_forest:
+              n_estimators: 30
+              max_depth: 10
+              random_state: 42
+              n_jobs: -1
+          hyperparameter_tuning:
+            linear_regression:
+              fit_intercept:
+              - true
+              - false
+            random_forest:
+              n_estimators:
+              - 1
+              - 10
+              max_depth:
+              - 2
+              - 4
+              min_samples_leaf:
+              - 1
+              - 5
+    outs:
+    - path: reports/model_comparison.csv
+      hash: md5
+      md5: 2f9ee06278f057e8f99857d002d42402
+      size: 160
+  tune_model:
+    cmd: python src/models/tune_model.py
+    deps:
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 7464f0f3c457576f1e9c68091f530ff6
+      size: 63958961
+    - path: reports/model_comparison.csv
+      hash: md5
+      md5: 2f9ee06278f057e8f99857d002d42402
+      size: 160
+    - path: src/models/train_model.py
+      hash: md5
+      md5: 7b1712e8029b497337fd32a9f28e7ab1
+      size: 4506
+    - path: src/models/tune_model.py
+      hash: md5
+      md5: 6c806078835910a9c02cea79306fde75
+      size: 4294
+    params:
+      params.yaml:
+        model_training:
+          target: Fare_amount
+          experiment_name: Green-Taxi-Fare-Prediction
+          cv_folds: 3
+          random_state: 42
+          models:
+            linear_regression:
+              fit_intercept: true
+              n_jobs: -1
+            random_forest:
+              n_estimators: 30
+              max_depth: 10
+              random_state: 42
+              n_jobs: -1
+          hyperparameter_tuning:
+            linear_regression:
+              fit_intercept:
+              - true
+              - false
+            random_forest:
+              n_estimators:
+              - 1
+              - 10
+              max_depth:
+              - 2
+              - 4
+              min_samples_leaf:
+              - 1
+              - 5
+    outs:
+    - path: models/best_model.joblib
+      hash: md5
+      md5: 8249820a3b7bef0209e381dab3793403
+      size: 10392
+    - path: reports/best_parameters.csv
+      hash: md5
+      md5: be7d3b226377d8441677226cfe69ee83
+      size: 84
+    - path: reports/grid_search_results.csv
+      hash: md5
+      md5: c3c441eb7c879aa331f5571199d9569d
+      size: 1186
+  evaluate_model:
+    cmd: python src/models/evaluate_model.py
+    deps:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: c661e7f83e28f8517597893b899fdf66
+      size: 15989598
+    - path: models/best_model.joblib
+      hash: md5
+      md5: 8249820a3b7bef0209e381dab3793403
+      size: 10392
+    - path: src/models/evaluate_model.py
+      hash: md5
+      md5: 510363f5d0b26755ce59aa638a328a73
+      size: 2167
+    - path: src/models/train_model.py
+      hash: md5
+      md5: 7b1712e8029b497337fd32a9f28e7ab1
+      size: 4506
+    params:
+      params.yaml:
+        model_training:
+          target: Fare_amount
+          experiment_name: Green-Taxi-Fare-Prediction
+          cv_folds: 3
+          random_state: 42
+          models:
+            linear_regression:
+              fit_intercept: true
+              n_jobs: -1
+            random_forest:
+              n_estimators: 30
+              max_depth: 10
+              random_state: 42
+              n_jobs: -1
+          hyperparameter_tuning:
+            linear_regression:
+              fit_intercept:
+              - true
+              - false
+            random_forest:
+              n_estimators:
+              - 1
+              - 10
+              max_depth:
+              - 2
+              - 4
+              min_samples_leaf:
+              - 1
+              - 5
+    outs:
+    - path: reports/test_evaluation.csv
+      hash: md5
+      md5: f0510570750e2e1cd316ca811ddd332b
+      size: 68
