@@ -7,6 +7,11 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import GridSearchCV
 
+from src.utils.mlflow_utils import (
+    setup_mlflow,
+    log_tuning_results,
+)
+
 from src.models.train_model import (
     PROJECT_ROOT,
     load_params,
@@ -48,9 +53,11 @@ def get_selected_model(model_name, params):
         return LinearRegression(
             **model_configs["linear_regression"]
         )
-    
+
     if model_name == "Random Forest":
-        return RandomForestRegressor()
+        return RandomForestRegressor(
+            **model_configs["random_forest"]
+        )
 
     raise ValueError(f"Unsupported model: {model_name}")
 
@@ -75,7 +82,14 @@ def get_parameter_grid(model, params):
     }
 
 
-def tune_selected_model(pipeline, parameter_grid, X, y, params):
+def tune_selected_model(
+    pipeline,
+    parameter_grid,
+    X,
+    y,
+    params,
+    model_name,
+):
     search = GridSearchCV(
         estimator=pipeline,
         param_grid=parameter_grid,
@@ -110,53 +124,64 @@ def tune_selected_model(pipeline, parameter_grid, X, y, params):
 
     results["mean_test_MAE"] *= -1
     results["mean_test_RMSE"] *= -1
-
     results = results.sort_values("rank_test_R2")
 
     reports_dir = PROJECT_ROOT / "reports"
     reports_dir.mkdir(parents=True, exist_ok=True)
 
-    results.to_csv(
-        reports_dir / "grid_search_results.csv",
+    grid_results_path = reports_dir / "grid_search_results.csv"
+    grid_results_path and results.to_csv(
+        grid_results_path,
         index=False,
     )
+
+    best_parameters_path = reports_dir / "best_parameters.csv"
 
     best_parameters = pd.DataFrame(
         list(search.best_params_.items()),
         columns=["parameter", "value"],
     )
-
-    best_parameters.to_csv(
-        reports_dir / "best_parameters.csv",
-        index=False,
-    )
+    best_parameters.to_csv(best_parameters_path, index=False)
 
     models_dir = PROJECT_ROOT / "models"
     models_dir.mkdir(parents=True, exist_ok=True)
 
     model_path = models_dir / "best_model.joblib"
+    joblib.dump(search.best_estimator_, model_path, compress=3)
 
-    joblib.dump(
-        search.best_estimator_,
-        model_path,
-        compress=3,
+    best_index = search.best_index_
+
+    best_metrics = {
+        "CV_R2": float(search.best_score_),
+        "CV_MAE": float(
+            -search.cv_results_["mean_test_MAE"][best_index]
+        ),
+        "CV_RMSE": float(
+            -search.cv_results_["mean_test_RMSE"][best_index]
+        ),
+    }
+
+    log_tuning_results(
+        model_name=model_name,
+        best_params=search.best_params_,
+        metrics=best_metrics,
+        artifact_paths=[
+            grid_results_path,
+            best_parameters_path,
+            model_path,
+        ],
     )
 
     print(f"\nSaved final model: {model_path}")
-    print(
-        f"Saved tuning results: "
-        f"{reports_dir / 'grid_search_results.csv'}"
-    )
-    print(
-        f"Saved best parameters: "
-        f"{reports_dir / 'best_parameters.csv'}"
-    )
+    print(f"Saved tuning results: {grid_results_path}")
+    print(f"Saved best parameters: {best_parameters_path}")
 
     return search.best_estimator_
 
 
 if __name__ == "__main__":
     params = load_params()
+    setup_mlflow(params["experiment_name"])
 
     model_name = load_selected_model_name()
     df = load_data()
@@ -182,4 +207,5 @@ if __name__ == "__main__":
         X,
         y,
         params,
+        model_name,
     )

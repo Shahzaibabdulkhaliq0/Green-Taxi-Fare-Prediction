@@ -26,6 +26,7 @@ stages:
     cmd: python src/models/train_model.py
     deps:
       - src/models/train_model.py
+      - src/utils/mlflow_utils.py
       - data/processed/train.csv
     params:
       - model_training
@@ -37,6 +38,7 @@ stages:
     deps:
       - src/models/tune_model.py
       - src/models/train_model.py
+      - src/utils/mlflow_utils.py
       - data/processed/train.csv
       - reports/model_comparison.csv
     params:
@@ -51,6 +53,7 @@ stages:
     deps:
       - src/models/evaluate_model.py
       - src/models/train_model.py
+      - src/utils/mlflow_utils.py
       - data/processed/test.csv
       - models/best_model.joblib
     params:

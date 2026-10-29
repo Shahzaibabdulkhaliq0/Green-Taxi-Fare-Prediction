@@ -10,6 +10,10 @@ from sklearn.model_selection import cross_validate
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 
+from src.utils.mlflow_utils import (
+    setup_mlflow,
+    log_training_results,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PARAMS_PATH = PROJECT_ROOT / "params.yaml"
@@ -151,6 +155,8 @@ def compare_models(
         index=False,
     )
 
+    log_training_results(results)
+
     print("\nModel comparison:")
     print(results.to_string(index=False))
 
@@ -165,6 +171,8 @@ def compare_models(
 
 if __name__ == "__main__":
     params = load_params()
+    ## Here is MlFlow Call
+    setup_mlflow(params["experiment_name"])
 
     df = load_data()
 

@@ -9,7 +9,10 @@ from sklearn.metrics import (
 )
 
 from src.models.train_model import PROJECT_ROOT, load_params
-
+from src.utils.mlflow_utils import (
+    setup_mlflow,
+    log_evaluation,
+)
 
 def load_model():
     model_path = PROJECT_ROOT / "models" / "best_model.joblib"
@@ -75,7 +78,11 @@ def evaluate_model(model, df):
     return pd.DataFrame([results])
 
 
+
 if __name__ == "__main__":
+    params = load_params()
+    setup_mlflow(params["experiment_name"])
+
     model = load_model()
     test_df = load_test_data()
 
@@ -87,4 +94,15 @@ if __name__ == "__main__":
     report_path = reports_dir / "test_evaluation.csv"
     results.to_csv(report_path, index=False)
 
+    metrics = {
+        metric: float(value)
+        for metric, value in results.iloc[0].items()
+    }
+
+    log_evaluation(
+        metrics=metrics,
+        report_path=report_path,
+    )
+
     print(f"\nReport saved: {report_path}")
+    print("Evaluation metrics logged to MLflow.")

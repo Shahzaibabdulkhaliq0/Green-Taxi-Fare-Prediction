@@ -78,8 +78,12 @@ stages:
       size: 63958961
     - path: src/models/train_model.py
       hash: md5
-      md5: 7b1712e8029b497337fd32a9f28e7ab1
-      size: 4506
+      md5: f6d48a51666dc7792ff1f91fd8a78be4
+      size: 4695
+    - path: src/utils/mlflow_utils.py
+      hash: md5
+      md5: e0c6f34e186f4365bf21a3043c025e5f
+      size: 1893
     params:
       params.yaml:
         model_training:
@@ -114,7 +118,7 @@ stages:
     outs:
     - path: reports/model_comparison.csv
       hash: md5
-      md5: 2f9ee06278f057e8f99857d002d42402
+      md5: fd922e207bf448b9e7b4dbd450f69be7
       size: 160
   tune_model:
     cmd: python src/models/tune_model.py
@@ -125,16 +129,20 @@ stages:
       size: 63958961
     - path: reports/model_comparison.csv
       hash: md5
-      md5: 2f9ee06278f057e8f99857d002d42402
+      md5: fd922e207bf448b9e7b4dbd450f69be7
       size: 160
     - path: src/models/train_model.py
       hash: md5
-      md5: 7b1712e8029b497337fd32a9f28e7ab1
-      size: 4506
+      md5: f6d48a51666dc7792ff1f91fd8a78be4
+      size: 4695
     - path: src/models/tune_model.py
       hash: md5
-      md5: 6c806078835910a9c02cea79306fde75
-      size: 4294
+      md5: 372c654aadde667dd5e8d7ba1a066920
+      size: 5059
+    - path: src/utils/mlflow_utils.py
+      hash: md5
+      md5: e0c6f34e186f4365bf21a3043c025e5f
+      size: 1893
     params:
       params.yaml:
         model_training:
@@ -169,16 +177,16 @@ stages:
     outs:
     - path: models/best_model.joblib
       hash: md5
-      md5: 8249820a3b7bef0209e381dab3793403
-      size: 10392
+      md5: bc090aa1bf9c522e84ed343ca563dd0c
+      size: 3222
     - path: reports/best_parameters.csv
       hash: md5
-      md5: be7d3b226377d8441677226cfe69ee83
-      size: 84
+      md5: 2108e69cf58323c7cf4c78f439542e50
+      size: 83
     - path: reports/grid_search_results.csv
       hash: md5
-      md5: c3c441eb7c879aa331f5571199d9569d
-      size: 1186
+      md5: 7b71184cde6b0657ceb136cc28838ac8
+      size: 1182
   evaluate_model:
     cmd: python src/models/evaluate_model.py
     deps:
@@ -188,16 +196,20 @@ stages:
       size: 15989598
     - path: models/best_model.joblib
       hash: md5
-      md5: 8249820a3b7bef0209e381dab3793403
-      size: 10392
+      md5: bc090aa1bf9c522e84ed343ca563dd0c
+      size: 3222
     - path: src/models/evaluate_model.py
       hash: md5
-      md5: 510363f5d0b26755ce59aa638a328a73
-      size: 2167
+      md5: 47a1b06c59ca173fe94d64340972c16a
+      size: 2556
     - path: src/models/train_model.py
       hash: md5
-      md5: 7b1712e8029b497337fd32a9f28e7ab1
-      size: 4506
+      md5: f6d48a51666dc7792ff1f91fd8a78be4
+      size: 4695
+    - path: src/utils/mlflow_utils.py
+      hash: md5
+      md5: e0c6f34e186f4365bf21a3043c025e5f
+      size: 1893
     params:
       params.yaml:
         model_training:
@@ -232,5 +244,5 @@ stages:
     outs:
     - path: reports/test_evaluation.csv
       hash: md5
-      md5: f0510570750e2e1cd316ca811ddd332b
+      md5: bcddd3ffd66316b5b4fdd0900278303a
       size: 68
