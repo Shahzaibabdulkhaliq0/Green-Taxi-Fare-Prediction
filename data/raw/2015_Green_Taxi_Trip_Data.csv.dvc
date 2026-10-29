@@ -1,0 +1,5 @@
+outs:
+- md5: 6db3bf7cd76d720c1897563138bb9923
+  size: 124928071
+  hash: md5
+  path: 2015_Green_Taxi_Trip_Data.csv
