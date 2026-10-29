@@ -1,0 +1,10 @@
+# local package
+-e .
+
+# external requirements
+pandas
+scikit-learn
+PyYAML
+mlflow
+#xgboosts
+dvc
