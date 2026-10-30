@@ -1,10 +1,19 @@
-# local package
+# Local package
 -e .
 
-# external requirements
+# Data and ML
 pandas
 scikit-learn
 PyYAML
 mlflow
-#xgboosts
+
+# API server
+fastapi
+uvicorn
+gunicorn
+uvicorn-worker
+
+# Pipeline and testing
 dvc
+pytest
+httpx2
