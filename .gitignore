@@ -93,4 +93,13 @@ src/__pycache__
 src.egg-info
 
 # MLflow tracking artifacts
+mlruns/reports/test_evaluation.csv
+
+
+# MLflow tracking artifacts
 mlruns/
+
+# Generated evaluation reports
+reports/test_evaluation.csv
+mlruns/
+reports/test_evaluation.csv

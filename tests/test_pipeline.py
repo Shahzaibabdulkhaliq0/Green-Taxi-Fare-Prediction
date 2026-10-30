@@ -8,6 +8,8 @@ from src.models import train_model as training
 from src.models import tune_model as tuning
 from src.models import evaluate_model as evaluation
 from src.models import predict_model as prediction
+from fastapi.testclient import TestClient
+from src.api.main import app
 
 # =========================
 # DATA PREPARATION TESTS
@@ -689,3 +691,105 @@ def test_predict_fare():
 
     assert isinstance(result, float)
     assert result == 25.0
+
+
+# =========================
+# FASTAPI TESTS
+# =========================
+
+client = TestClient(app)
+
+
+def test_api_root():
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "message": "Green Taxi Fare Prediction API",
+        "status": "running"
+    }
+
+
+def test_api_health():
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "healthy"}
+
+
+def test_api_prediction(monkeypatch):
+    class MockModel:
+        def predict(self, data):
+            assert len(data) == 1
+            return [8.37]
+
+    monkeypatch.setattr(
+        "src.api.main.load_model",
+        lambda: MockModel()
+    )
+
+    payload = {
+        "vendorid": 2,
+        "Store_and_fwd_flag": "N",
+        "rate_code": 1,
+        "Pickup_longitude": -73.9857,
+        "Pickup_latitude": 40.7484,
+        "Dropoff_longitude": -73.9851,
+        "Dropoff_latitude": 40.7580,
+        "Passenger_count": 1,
+        "Trip_distance": 1.2,
+        "Trip_type": 1,
+        "pickup_hour": 14,
+        "pickup_weekday": 2,
+        "pickup_month": 6
+    }
+
+    response = client.post("/predict", json=payload)
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "predicted_fare": 8.37,
+        "currency": "USD"
+    }
+
+
+def test_api_prediction_invalid_input():
+    payload = {
+        "vendorid": 2,
+        "Trip_distance": -1
+    }
+
+    response = client.post("/predict", json=payload)
+
+    assert response.status_code == 422
+
+
+def test_api_prediction_model_unavailable(monkeypatch):
+    def mock_load_model():
+        raise FileNotFoundError("Model not found")
+
+    monkeypatch.setattr(
+        "src.api.main.load_model",
+        mock_load_model
+    )
+
+    payload = {
+        "vendorid": 2,
+        "Store_and_fwd_flag": "N",
+        "rate_code": 1,
+        "Pickup_longitude": -73.9857,
+        "Pickup_latitude": 40.7484,
+        "Dropoff_longitude": -73.9851,
+        "Dropoff_latitude": 40.7580,
+        "Passenger_count": 1,
+        "Trip_distance": 1.2,
+        "Trip_type": 1,
+        "pickup_hour": 14,
+        "pickup_weekday": 2,
+        "pickup_month": 6
+    }
+
+    response = client.post("/predict", json=payload)
+
+    assert response.status_code == 503
+    assert "Model not found" in response.json()["detail"]
