@@ -31,6 +31,14 @@ jobs:
       - name: Run tests
         run: pytest -v
 
+      - name: Check trained model exists
+        run: |
+          if [ ! -f models/best_model.joblib ]; then
+            echo "models/best_model.joblib is missing from the repo."
+            echo "Run 'dvc repro' locally, then: git add -f models/best_model.joblib"
+            exit 1
+          fi
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -62,3 +70,14 @@ jobs:
           push: ${{ github.event_name == 'push' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Deploy to ECS
+        if: github.event_name == 'push'
+        run: |
+          aws ecs update-service \
+            --cluster green-taxi-cluster \
+            --service green-taxi-service \
+            --force-new-deployment
+          aws ecs wait services-stable \
+            --cluster green-taxi-cluster \
+            --services green-taxi-service

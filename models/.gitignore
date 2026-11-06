@@ -1,1 +1,2 @@
-/best_model.joblib
+# best_model.joblib is committed on purpose: the Docker image needs it
+# (no DVC remote is configured, so CI cannot pull it).
