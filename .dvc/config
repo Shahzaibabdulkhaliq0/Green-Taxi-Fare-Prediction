@@ -1,0 +1,5 @@
+[core]
+    remote = s3remote
+['remote "s3remote"']
+    url = s3://green-taxi-dvc-010928224571/dvc
+    region = eu-north-1
