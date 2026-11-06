@@ -53,7 +53,7 @@ jobs:
       - name: Smoke test the container
         run: |
           docker run -d --name smoke -p 8000:8000 smoke-test:latest
-          curl --fail --retry 20 --retry-delay 3 --retry-connrefused http://localhost:8000/health
+          curl --fail --retry 20 --retry-delay 3 --retry-all-errors http://localhost:8000/health
           curl --fail -X POST http://localhost:8000/predict \
             -H "Content-Type: application/json" \
             -d '{"vendorid":2,"Store_and_fwd_flag":"N","rate_code":1,"Pickup_longitude":-73.95,"Pickup_latitude":40.75,"Dropoff_longitude":-73.98,"Dropoff_latitude":40.76,"Passenger_count":1,"Trip_distance":3.5,"Trip_type":1,"pickup_hour":14,"pickup_weekday":2,"pickup_month":6}'
