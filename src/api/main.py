@@ -1,3 +1,6 @@
+import json
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import joblib
@@ -61,6 +64,8 @@ def health_check():
 
 @app.post("/predict")
 def predict_fare(trip: TripInput):
+    start_time = time.perf_counter()
+
     try:
         model = load_model()
 
@@ -71,6 +76,16 @@ def predict_fare(trip: TripInput):
                 input_data[column] = input_data[column].astype("object")
 
         prediction = float(model.predict(input_data)[0])
+        latency_ms = round((time.perf_counter() - start_time) * 1000, 2)
+
+        # One JSON line per prediction. ECS sends stdout to CloudWatch Logs.
+        print(json.dumps({
+            "event": "prediction",
+            "time": datetime.now(timezone.utc).isoformat(),
+            "latency_ms": latency_ms,
+            "predicted_fare": round(prediction, 2),
+            "input": trip.model_dump(),
+        }), flush=True)
 
         return {
             "predicted_fare": round(prediction, 2),
@@ -78,9 +93,21 @@ def predict_fare(trip: TripInput):
         }
 
     except FileNotFoundError as error:
+        print(json.dumps({
+            "event": "prediction_error",
+            "status": 503,
+            "error": str(error),
+        }), flush=True)
+
         raise HTTPException(status_code=503, detail=str(error))
 
     except Exception as error:
+        print(json.dumps({
+            "event": "prediction_error",
+            "status": 500,
+            "error": str(error),
+        }), flush=True)
+
         raise HTTPException(
             status_code=500,
             detail=f"Prediction failed: {str(error)}",
