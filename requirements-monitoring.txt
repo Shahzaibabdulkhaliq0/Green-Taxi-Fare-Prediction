@@ -1,0 +1,4 @@
+# Only needed on your laptop to build the drift report.
+# Not installed in the Docker image.
+evidently
+pandas

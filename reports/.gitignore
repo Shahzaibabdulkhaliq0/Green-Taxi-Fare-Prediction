@@ -1,3 +1,5 @@
 /model_comparison.csv
 /grid_search_results.csv
 /best_parameters.csv
+/prediction_logs.json
+/drift_report.html
