@@ -73,3 +73,9 @@ def test_invalid_input_writes_no_prediction_log(capsys):
     logs = read_log_lines(capsys.readouterr().out)
 
     assert logs == []
+
+
+def test_static_fonts_are_served():
+    response = client.get("/static/fonts/archivo-latin-wdth-normal.woff2")
+
+    assert response.status_code == 200

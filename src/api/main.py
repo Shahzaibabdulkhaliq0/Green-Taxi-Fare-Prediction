@@ -7,6 +7,8 @@ import joblib
 import pandas as pd
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from src.models.train_model import PROJECT_ROOT
@@ -20,6 +22,9 @@ app = FastAPI(
 
 
 MODEL_PATH = PROJECT_ROOT / "models" / "best_model.joblib"
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 class TripInput(BaseModel):
@@ -47,12 +52,9 @@ def load_model():
     return joblib.load(MODEL_PATH)
 
 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 def root():
-    return {
-        "message": "Green Taxi Fare Prediction API",
-        "status": "running",
-    }
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.get("/health")

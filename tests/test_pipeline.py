@@ -701,13 +701,13 @@ client = TestClient(app)
 
 
 def test_api_root():
+    # "/" now serves the demo UI (src/api/static/index.html) instead of a
+    # JSON status message. /health is the machine-readable status check.
     response = client.get("/")
 
     assert response.status_code == 200
-    assert response.json() == {
-        "message": "Green Taxi Fare Prediction API",
-        "status": "running"
-    }
+    assert "text/html" in response.headers["content-type"]
+    assert "Green taxi fare estimator" in response.text
 
 
 def test_api_health():
