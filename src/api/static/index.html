@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Green taxi fare estimator</title>
+  <meta name="description" content="Estimate the fare of a New York green taxi trip with a machine learning model.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%238dc63f'/%3E%3Crect x='7' y='13' width='18' height='9' rx='2' fill='%2312301f'/%3E%3Crect x='12' y='8' width='8' height='4' rx='1' fill='%2312301f'/%3E%3C/svg%3E">
+
+  <style>
+    /* Fonts are self-hosted: Archivo (variable width and weight) and DSEG7 for the meter digits. */
+    @font-face {
+      font-family: "Archivo Variable";
+      font-style: normal;
+      font-display: swap;
+      font-weight: 100 900;
+      font-stretch: 62% 125%;
+      src: url("/static/fonts/archivo-latin-wdth-normal.woff2") format("woff2-variations");
+    }
+    @font-face {
+      font-family: "DSEG7";
+      font-display: swap;
+      font-weight: 700;
+      src: url("/static/fonts/DSEG7Classic-Bold.woff2") format("woff2");
+    }
+
+    :root {
+      --concrete: #e7eae2;
+      --chalk: #f6f7f2;
+      --bottle: #12301f;
+      --bottle-line: #24523a;
+      --apple: #8dc63f;
+      --apple-deep: #3f6710;
+      --amber: #ffb627;
+      --muted: #45584d;
+      --edge: #b6beaf;
+      --signal: #b3321f;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--concrete);
+      color: var(--bottle);
+      font-family: "Archivo Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-size: 1rem;
+      line-height: 1.55;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    :focus-visible {
+      outline: 3px solid var(--bottle);
+      outline-offset: 2px;
+    }
+
+    /* Header: the green band is the taxi's paint */
+    .band {
+      background: var(--apple);
+      color: var(--bottle);
+    }
+    .band-inner {
+      max-width: 68rem;
+      margin: 0 auto;
+      padding: 1.25rem 1.25rem 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 0.75rem 2rem;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(1.75rem, 4.2vw, 2.75rem);
+      font-weight: 800;
+      font-stretch: 125%;
+      line-height: 1.05;
+      letter-spacing: -0.01em;
+    }
+    .band p {
+      margin: 0.35rem 0 0;
+      max-width: 38rem;
+      font-size: 1.0625rem;
+    }
+    .band a {
+      color: var(--bottle);
+      font-weight: 600;
+      text-underline-offset: 3px;
+    }
+
+    main {
+      max-width: 68rem;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 3rem;
+      display: grid;
+      grid-template-columns: minmax(0, 33rem) minmax(0, 1fr);
+      gap: clamp(2rem, 5vw, 4.5rem);
+      align-items: start;
+    }
+
+    /* Form */
+    form { display: grid; gap: 1.5rem; }
+
+    fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+
+    label, .label {
+      display: block;
+      margin-bottom: 0.3rem;
+      font-weight: 600;
+      font-size: 0.9375rem;
+    }
+
+    select, input {
+      width: 100%;
+      min-height: 2.75rem;
+      padding: 0.55rem 0.75rem;
+      border: 1px solid var(--edge);
+      border-radius: 6px;
+      background: var(--chalk);
+      color: var(--bottle);
+      font: inherit;
+    }
+    select:hover, input:hover { border-color: var(--muted); }
+
+    .hint {
+      margin: 0.35rem 0 0;
+      color: var(--muted);
+      font-size: 0.875rem;
+    }
+
+    /* Route: two stops joined by a line, because a trip goes from one place to another */
+    .route { display: grid; gap: 1rem; position: relative; }
+    .stop {
+      display: grid;
+      grid-template-columns: 1.5rem minmax(0, 1fr);
+      column-gap: 0.75rem;
+      position: relative;
+    }
+    .stop > div { grid-column: 2; }
+    .pin {
+      grid-column: 1;
+      grid-row: 1;
+      align-self: end;
+      margin-bottom: 0.9rem;
+      width: 1.1rem;
+      height: 1.1rem;
+      justify-self: center;
+      position: relative;
+      z-index: 1;
+    }
+    .pin-from {
+      border-radius: 50%;
+      background: var(--apple);
+      border: 3px solid var(--bottle);
+    }
+    .pin-to {
+      background: var(--bottle);
+      border-radius: 2px;
+    }
+    .route::before {
+      content: "";
+      position: absolute;
+      left: 0.75rem;
+      top: 2.9rem;
+      bottom: 2.4rem;
+      width: 0;
+      border-left: 3px dotted var(--bottle);
+      transform: translateX(-1.5px);
+    }
+
+    .pair {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    details {
+      border-top: 1px solid var(--edge);
+      padding-top: 0.9rem;
+    }
+    summary {
+      cursor: pointer;
+      font-weight: 600;
+      padding: 0.25rem 0;
+    }
+    summary::marker { color: var(--apple-deep); }
+    .more { display: grid; gap: 1rem; margin-top: 1rem; }
+    .coords { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+
+    .go {
+      justify-self: start;
+      min-height: 3rem;
+      padding: 0.7rem 1.6rem;
+      border: 2px solid var(--bottle);
+      border-radius: 6px;
+      background: var(--apple);
+      color: var(--bottle);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+    .go:hover { background: #a1d558; }
+    .go[aria-busy="true"] { cursor: progress; background: var(--concrete); }
+
+    .message {
+      margin: 0;
+      min-height: 1.5rem;
+      color: var(--signal);
+      font-weight: 600;
+    }
+
+    /* Meter: the one memorable thing on the page */
+    .meter-wrap { position: sticky; top: 1.5rem; display: grid; gap: 1.25rem; }
+    .meter {
+      background: var(--bottle);
+      color: var(--chalk);
+      border-radius: 18px;
+      padding: 1.25rem 1.5rem 1rem;
+      box-shadow: inset 0 0 0 1px var(--bottle-line), 0 14px 28px -18px rgba(18, 48, 31, 0.7);
+    }
+    .meter-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 0.9375rem;
+      color: #c9d8cd;
+    }
+    .readout {
+      position: relative;
+      margin: 0.75rem 0 0.9rem;
+      padding: 1rem 1.1rem;
+      border-radius: 10px;
+      background: #0a2015;
+      box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.55);
+      overflow: hidden;
+      text-align: right;
+    }
+    .digits {
+      display: block;
+      font-family: "DSEG7", ui-monospace, monospace;
+      font-weight: 700;
+      font-size: clamp(3.25rem, 9vw, 5.5rem);
+      line-height: 1.1;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+    .ghost {
+      position: absolute;
+      inset: 1rem 1.1rem;
+      color: var(--amber);
+      opacity: 0.1;
+    }
+    .value {
+      position: relative;
+      color: var(--amber);
+      text-shadow: 0 0 14px rgba(255, 182, 39, 0.35);
+    }
+    .meter-foot {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      font-size: 0.875rem;
+      color: #c9d8cd;
+    }
+
+    .about { margin: 0; color: var(--muted); font-size: 0.9375rem; max-width: 30rem; }
+    .about strong { color: var(--bottle); }
+
+    .raw summary { font-size: 0.9375rem; }
+    pre {
+      margin: 0.75rem 0 0;
+      padding: 0.9rem 1rem;
+      overflow-x: auto;
+      border-radius: 6px;
+      background: var(--chalk);
+      border: 1px solid var(--edge);
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    @media (max-width: 56rem) {
+      main { grid-template-columns: minmax(0, 1fr); }
+      .meter-wrap { position: static; }
+    }
+    @media (max-width: 30rem) {
+      .pair, .coords { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="band">
+    <div class="band-inner">
+      <div>
+        <h1>Green taxi fare estimator</h1>
+        <p>Pick two stops in New York, a pickup time and the number of passengers. A machine learning model estimates the fare.</p>
+      </div>
+      <a href="/docs">API documentation</a>
+    </div>
+  </header>
+
+  <main>
+    <form id="trip" novalidate>
+      <fieldset class="route">
+        <legend class="sr-only">Route</legend>
+        <div class="stop">
+          <span class="pin pin-from" aria-hidden="true"></span>
+          <div>
+            <label for="pickup">Pickup</label>
+            <select id="pickup"></select>
+          </div>
+        </div>
+        <div class="stop">
+          <span class="pin pin-to" aria-hidden="true"></span>
+          <div>
+            <label for="dropoff">Drop-off</label>
+            <select id="dropoff"></select>
+          </div>
+        </div>
+      </fieldset>
+
+      <div>
+        <label for="when">Pickup time</label>
+        <input id="when" type="datetime-local" required>
+      </div>
+
+      <div class="pair">
+        <div>
+          <label for="passengers">Passengers</label>
+          <input id="passengers" type="number" min="1" max="6" step="1" value="1" inputmode="numeric" required>
+        </div>
+        <div>
+          <label for="distance">Distance in miles</label>
+          <input id="distance" type="number" min="0.1" step="0.1" inputmode="decimal" required>
+        </div>
+      </div>
+      <p class="hint" style="margin-top:-0.75rem">The distance is estimated from the two stops (straight line plus 30% for streets). Change it if you know the real distance.</p>
+
+      <details>
+        <summary>More trip details</summary>
+        <div class="more">
+          <div class="pair">
+            <div>
+              <label for="vendor">Taxi technology provider</label>
+              <select id="vendor">
+                <option value="1">Creative Mobile Technologies</option>
+                <option value="2" selected>VeriFone</option>
+              </select>
+            </div>
+            <div>
+              <label for="trip-type">How the trip started</label>
+              <select id="trip-type">
+                <option value="1" selected>Street hail</option>
+                <option value="2">Dispatch</option>
+              </select>
+            </div>
+          </div>
+          <div class="pair">
+            <div>
+              <label for="rate">Rate code</label>
+              <select id="rate">
+                <option value="1" selected>Standard rate</option>
+                <option value="2">JFK</option>
+                <option value="3">Newark</option>
+                <option value="4">Nassau or Westchester</option>
+                <option value="5">Negotiated fare</option>
+                <option value="6">Group ride</option>
+              </select>
+            </div>
+            <div>
+              <label for="flag">Trip record stored in the vehicle first</label>
+              <select id="flag">
+                <option value="N" selected>No</option>
+                <option value="Y">Yes</option>
+              </select>
+            </div>
+          </div>
+          <div class="coords">
+            <div><label for="p-lat">Pickup latitude</label><input id="p-lat" type="number" step="any"></div>
+            <div><label for="p-lng">Pickup longitude</label><input id="p-lng" type="number" step="any"></div>
+            <div><label for="d-lat">Drop-off latitude</label><input id="d-lat" type="number" step="any"></div>
+            <div><label for="d-lng">Drop-off longitude</label><input id="d-lng" type="number" step="any"></div>
+          </div>
+        </div>
+      </details>
+
+      <button id="go" class="go" type="submit">Get fare</button>
+      <p id="message" class="message" role="alert"></p>
+    </form>
+
+    <section class="meter-wrap" aria-labelledby="meter-title">
+      <div class="meter">
+        <div class="meter-top">
+          <span id="meter-title">Estimated fare</span>
+          <span>USD</span>
+        </div>
+        <div class="readout">
+          <span class="digits ghost" aria-hidden="true">888.88</span>
+          <span id="fare" class="digits value" aria-hidden="true">--.--</span>
+        </div>
+        <div class="meter-foot">
+          <span>Model estimate, not a taxi meter reading</span>
+          <span id="timing"></span>
+        </div>
+      </div>
+      <p id="fare-sr" class="sr-only" aria-live="polite"></p>
+
+      <p class="about">
+        <strong>How it works.</strong> The page sends your trip to the <code>/predict</code> endpoint of a FastAPI service running on AWS. A scikit-learn model trained on 2015 New York green taxi trips returns the fare.
+      </p>
+
+      <details class="raw">
+        <summary>Request and response</summary>
+        <pre id="raw">Submit a trip to see the JSON sent to /predict and the answer.</pre>
+      </details>
+    </section>
+  </main>
+
+  <script>
+    // Stops people can choose. Green taxis mostly serve the outer boroughs and upper Manhattan.
+    const STOPS = {
+      astoria:   { name: "Astoria, Queens",          lat: 40.7644, lng: -73.9235 },
+      lic:       { name: "Long Island City, Queens", lat: 40.7447, lng: -73.9485 },
+      jackson:   { name: "Jackson Heights, Queens",  lat: 40.7557, lng: -73.8831 },
+      laguardia: { name: "LaGuardia Airport",        lat: 40.7769, lng: -73.8740 },
+      williams:  { name: "Williamsburg, Brooklyn",   lat: 40.7081, lng: -73.9571 },
+      downtown:  { name: "Downtown Brooklyn",        lat: 40.6928, lng: -73.9903 },
+      harlem:    { name: "Harlem, Manhattan",        lat: 40.8075, lng: -73.9456 },
+      ues:       { name: "Upper East Side, Manhattan", lat: 40.7736, lng: -73.9566 }
+    };
+
+    const STREET_FACTOR = 1.3;
+
+    const el = {
+      form: document.getElementById("trip"),
+      pickup: document.getElementById("pickup"),
+      dropoff: document.getElementById("dropoff"),
+      when: document.getElementById("when"),
+      passengers: document.getElementById("passengers"),
+      distance: document.getElementById("distance"),
+      vendor: document.getElementById("vendor"),
+      tripType: document.getElementById("trip-type"),
+      rate: document.getElementById("rate"),
+      flag: document.getElementById("flag"),
+      pLat: document.getElementById("p-lat"),
+      pLng: document.getElementById("p-lng"),
+      dLat: document.getElementById("d-lat"),
+      dLng: document.getElementById("d-lng"),
+      go: document.getElementById("go"),
+      message: document.getElementById("message"),
+      fare: document.getElementById("fare"),
+      fareSr: document.getElementById("fare-sr"),
+      timing: document.getElementById("timing"),
+      raw: document.getElementById("raw")
+    };
+
+    const FIELD_NAMES = {
+      vendorid: "Taxi technology provider",
+      Store_and_fwd_flag: "Stored in the vehicle first",
+      rate_code: "Rate code",
+      Pickup_longitude: "Pickup longitude",
+      Pickup_latitude: "Pickup latitude",
+      Dropoff_longitude: "Drop-off longitude",
+      Dropoff_latitude: "Drop-off latitude",
+      Passenger_count: "Passengers",
+      Trip_distance: "Distance",
+      Trip_type: "How the trip started",
+      pickup_hour: "Pickup time",
+      pickup_weekday: "Pickup time",
+      pickup_month: "Pickup time"
+    };
+
+    // Fill both stop lists
+    for (const key of Object.keys(STOPS)) {
+      el.pickup.add(new Option(STOPS[key].name, key));
+      el.dropoff.add(new Option(STOPS[key].name, key));
+    }
+    el.pickup.add(new Option("Custom coordinates", "custom"));
+    el.dropoff.add(new Option("Custom coordinates", "custom"));
+    el.pickup.value = "astoria";
+    el.dropoff.value = "ues";
+
+    // Default pickup time: now, to the minute, in the browser's time zone
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    el.when.value = now.toISOString().slice(0, 16);
+
+    function milesBetween(aLat, aLng, bLat, bLng) {
+      const radius = 3958.8;
+      const rad = (degrees) => degrees * Math.PI / 180;
+      const dLat = rad(bLat - aLat);
+      const dLng = rad(bLng - aLng);
+      const h = Math.sin(dLat / 2) ** 2 +
+                Math.cos(rad(aLat)) * Math.cos(rad(bLat)) * Math.sin(dLng / 2) ** 2;
+      return 2 * radius * Math.asin(Math.sqrt(h));
+    }
+
+    function updateDistance() {
+      const miles = milesBetween(
+        Number(el.pLat.value), Number(el.pLng.value),
+        Number(el.dLat.value), Number(el.dLng.value)
+      ) * STREET_FACTOR;
+      el.distance.value = miles > 0 ? miles.toFixed(1) : "";
+    }
+
+    function fillCoordinates() {
+      if (el.pickup.value !== "custom") {
+        el.pLat.value = STOPS[el.pickup.value].lat;
+        el.pLng.value = STOPS[el.pickup.value].lng;
+      }
+      if (el.dropoff.value !== "custom") {
+        el.dLat.value = STOPS[el.dropoff.value].lat;
+        el.dLng.value = STOPS[el.dropoff.value].lng;
+      }
+      updateDistance();
+    }
+
+    el.pickup.addEventListener("change", fillCoordinates);
+    el.dropoff.addEventListener("change", fillCoordinates);
+
+    for (const input of [el.pLat, el.pLng]) {
+      input.addEventListener("input", () => { el.pickup.value = "custom"; updateDistance(); });
+    }
+    for (const input of [el.dLat, el.dLng]) {
+      input.addEventListener("input", () => { el.dropoff.value = "custom"; updateDistance(); });
+    }
+
+    fillCoordinates();
+
+    function showFare(value) {
+      el.fareSr.textContent = "Estimated fare: " + value.toFixed(2) + " US dollars.";
+
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reduceMotion) {
+        el.fare.textContent = value.toFixed(2);
+        return;
+      }
+
+      // The digits count up like a meter starting a fare
+      const started = performance.now();
+      const duration = 700;
+      function tick(time) {
+        const progress = Math.min((time - started) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        el.fare.textContent = (value * eased).toFixed(2);
+        if (progress < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+
+    function buildTrip() {
+      const pickedAt = new Date(el.when.value);
+      return {
+        vendorid: Number(el.vendor.value),
+        Store_and_fwd_flag: el.flag.value,
+        rate_code: Number(el.rate.value),
+        Pickup_longitude: Number(el.pLng.value),
+        Pickup_latitude: Number(el.pLat.value),
+        Dropoff_longitude: Number(el.dLng.value),
+        Dropoff_latitude: Number(el.dLat.value),
+        Passenger_count: Number(el.passengers.value),
+        Trip_distance: Number(el.distance.value),
+        Trip_type: Number(el.tripType.value),
+        pickup_hour: pickedAt.getHours(),
+        pickup_weekday: (pickedAt.getDay() + 6) % 7,   // Monday = 0, same as pandas
+        pickup_month: pickedAt.getMonth() + 1
+      };
+    }
+
+    function problemWith(trip) {
+      if (!el.when.value) return "Choose a pickup time.";
+      if (trip.Passenger_count < 1 || trip.Passenger_count > 6) return "Passengers must be between 1 and 6.";
+      if (!(trip.Trip_distance > 0)) return "Pick two different stops, or enter the distance yourself.";
+      return "";
+    }
+
+    el.form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      el.message.textContent = "";
+
+      const trip = buildTrip();
+      const problem = problemWith(trip);
+      if (problem) {
+        el.message.textContent = problem;
+        return;
+      }
+
+      el.go.setAttribute("aria-busy", "true");
+      el.go.textContent = "Getting fare";
+      const started = performance.now();
+
+      try {
+        const response = await fetch("/predict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(trip)
+        });
+        const body = await response.json();
+        const elapsed = Math.round(performance.now() - started);
+
+        el.raw.textContent =
+          "POST /predict\n" + JSON.stringify(trip, null, 2) +
+          "\n\nResponse " + response.status + "\n" + JSON.stringify(body, null, 2);
+
+        if (response.ok) {
+          showFare(body.predicted_fare);
+          el.timing.textContent = elapsed + " ms";
+        } else if (response.status === 422 && Array.isArray(body.detail)) {
+          el.message.textContent = body.detail.map((item) => {
+            const field = item.loc[item.loc.length - 1];
+            return (FIELD_NAMES[field] || field) + ": " + item.msg + ".";
+          }).join(" ");
+        } else if (response.status === 503) {
+          el.message.textContent = "The model is not loaded on the server yet. Try again in a minute.";
+        } else {
+          el.message.textContent = "The server could not price this trip. Check the details and try again.";
+        }
+      } catch (error) {
+        el.message.textContent = "Could not reach the API. Check that the service is running, then try again.";
+      }
+
+      el.go.removeAttribute("aria-busy");
+      el.go.textContent = "Get fare";
+    });
+  </script>
+</body>
+</html>
